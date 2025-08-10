@@ -1,5 +1,5 @@
-import asyncio
-import os
+import os, asyncio
+from aiohttp import web
 import time
 from dataclasses import dataclass
 from typing import Optional
@@ -136,13 +136,14 @@ async def main():
 import os, asyncio
 from aiohttp import web
 
-async def health(request):
+# --- Мини-HTTP для Render (держим открытый порт) ---
+async def _health(request):
     return web.Response(text="ok")
 
-async def run_web():
+async def _run_web():
     app = web.Application()
-    app.router.add_get("/", health)
-    app.router.add_get("/healthz", health)
+    app.router.add_get("/", _health)
+    app.router.add_get("/healthz", _health)
     port = int(os.getenv("PORT", "10000"))
     runner = web.AppRunner(app)
     await runner.setup()
@@ -150,15 +151,15 @@ async def run_web():
     await site.start()
     print(f"HTTP keep-alive on :{port}")
 
-# ---- Main bootstrap ----
+# ---- Запуск бота и веба параллельно ----
 if __name__ == "__main__":
-    async def runner():
-        # запускаем веб-сервер и бота параллельно
-        web_task = asyncio.create_task(run_web())
-        bot_task = asyncio.create_task(main())
+    async def _runner():
+        web_task = asyncio.create_task(_run_web())
+        bot_task = asyncio.create_task(main())  # это твоя функция, где dp.start_polling(...)
         await asyncio.gather(web_task, bot_task)
 
     try:
-        asyncio.run(runner())
+        asyncio.run(_runner())
     except (KeyboardInterrupt, SystemExit):
         print("Stopped")
+
